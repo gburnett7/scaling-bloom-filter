@@ -1,5 +1,3 @@
-
-
 #include <string>
 #include <memory>
 #include <vector>
@@ -20,11 +18,24 @@ struct bit_table {
     shared_ptr<vector<bool>> table;
 };
 
+typedef vector<shared_ptr<bit_table>> table_set;
+
+struct bloom_table {
+    // max desired probability of false positives
+    int maxFpProb;
+
+    // number of bit tables
+    int count;
+
+    // vector of bit tables
+    table_set tables;
+};
+
+
 
 class Bloom {
 private:
-    bit_table bloom_table;
-    float maxFpProb;
+    shared_ptr<bloom_table> bloomFilter;
     void Resize();
 
 public:
@@ -38,5 +49,5 @@ public:
 
     bool AddName(string newName);
 
-    float CollisionProbability();
+    float FalsePosProbability();
 };
