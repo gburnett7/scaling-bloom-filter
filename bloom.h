@@ -60,4 +60,5 @@ public:
 
     // Functions for testing
     shared_ptr<bloom_table> GetMainTable();
+    vector<int> GetHash(string input, int hashCount, int tblSize);
 };

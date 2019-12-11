@@ -107,7 +107,7 @@ vector<int> Bloom::GetHashBuckets(string input, int hashCount, int tblSize){
 
     // Get each hash bucket
     for(int i = 0; i < hashCount; i++){
-        long int out[1];
+        uint32_t out[1];
         MurmurHash3_x86_32(key, (int)strlen(key), 1+i, out);
         int bucket = out[0] % tblSize;
         ret.push_back(bucket);
@@ -121,4 +121,8 @@ vector<int> Bloom::GetHashBuckets(string input, int hashCount, int tblSize){
 // Testing Functions
 shared_ptr<bloom_table> Bloom::GetMainTable(){
     return this->bloomFilter;
+}
+
+vector<int> Bloom::GetHash(string input, int hashCount, int tblSize){
+    return GetHashBuckets(input, hashCount, tblSize);
 }
