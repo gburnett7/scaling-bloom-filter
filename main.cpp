@@ -3,6 +3,7 @@
 #include <string>
 #include "MurmurHash3.h"
 #include <cstring>
+#include <math.h>
 
 using namespace std;
 
@@ -24,9 +25,9 @@ int main() {
         }
     }
 
-    // InitBloomTable Test
+    // InitBloomTable/InitBitTable Test
     {
-        cout << "InitBloomTable Test" << endl;
+        cout << "InitBloomTable/InitBitTable Test" << endl;
         
         Bloom myBloom;
         myBloom.InitBloomTable(10, 0.01);
@@ -113,17 +114,18 @@ int main() {
         check_equal(1, myBloom.NameAvailable("33Kramer9"));
     }
 
-    // AddName (1 Table) Test
+    // 1 Table Test
     {
-        cout << "AddName (1 Table) Test" << endl;
+        cout << "1 Table Test" << endl;
         Bloom myBloom;
         myBloom.InitBloomTable(10, 0.01);
 
-        // Check manually
         myBloom.AddName("Art.Vandelay");
         myBloom.AddName("Costanza7");
         myBloom.AddName("33Kramer9");
         myBloom.AddName("Elaine_Benes");
+
+        // Check Manually
         vector<vector<int>> test_group;
         test_group.push_back(myBloom.GetHash("Art.Vandelay", 8, 111));
         test_group.push_back(myBloom.GetHash("Costanza7", 8, 111));
@@ -148,13 +150,112 @@ int main() {
         check_equal(1, myBloom.NameAvailable("Jerry.Seinfeld"));
         check_equal(1, myBloom.NameAvailable("Newman111"));
         check_equal(1, myBloom.NameAvailable("elaine_benes"));
+
+        // Check that item count updated
+        check_equal(4, myBloom.GetMainTable()->tables->at(0)->items);
+
+        //Check that the bloom filter wasn't resized
+        check_equal(1, myBloom.GetMainTable()->tables->size());
+
+        // Check false positive calculation
+        double test_prob = myBloom.FalsePosProbability();
+        double check_prob = pow(1 - pow(1 - 1.0 / 111, 8.0 * 4.0), 8.0);
+        cout << "  FP Prob (check manually): " << check_prob << " = "  << test_prob << endl;
+
+        // Reset filter
+        myBloom.Reset();
+        check_equal(1, myBloom.GetMainTable()->count);
+        check_equal(1, myBloom.GetMainTable()->tables->size());
+        check_equal(0, myBloom.GetMainTable()->tables->at(0)->items);
+
+        shared_ptr<bit_table> bit_test = myBloom.GetMainTable()->tables->at(0);
+        int ones = 0;
+        for(int i = 0; i < bit_test->table->size(); i++){
+            if(bit_test->table->at(i) == 1){ones++;}
+        }
+        if(ones > 0){
+            cout << "  Table contains 1's" << endl;
+        }
     }
 
-    
-
-    // FalsePosProbability Test
+    // Multi-Table Test
     {
+        cout << "Multi-Table Test" << endl;
+        Bloom myBloom;
+        myBloom.InitBloomTable(5, 0.1);
 
+        myBloom.AddName("Art.Vandelay");
+        myBloom.AddName("Costanza7");
+        myBloom.AddName("33Kramer9");
+        myBloom.AddName("Elaine_Benes");
+        myBloom.AddName("Jerry.Seinfeld");
+        myBloom.AddName("Newman111");
+        myBloom.AddName("elaine_benes");
+
+        // Successfully expanded?
+        check_equal(2, myBloom.GetMainTable()->tables->size());
+        check_equal(2, myBloom.GetMainTable()->count);
+        check_equal(5, myBloom.GetMainTable()->tables->at(0)->items);
+        check_equal(2, myBloom.GetMainTable()->tables->at(1)->items);
+
+        // Check Properties of second table
+        check_equal(0.025, myBloom.GetMainTable()->tables->at(1)->maxFpProb);
+        check_equal(10, myBloom.GetMainTable()->tables->at(1)->expected);
+        check_equal(77, myBloom.GetMainTable()->tables->at(1)->size);
+        check_equal(6, myBloom.GetMainTable()->tables->at(1)->hash_count);
+
+        // Does NameAvailable check both tables?
+        check_equal(0, myBloom.NameAvailable("Art.Vandelay"));
+        check_equal(0, myBloom.NameAvailable("Costanza7"));
+        check_equal(0, myBloom.NameAvailable("33Kramer9"));
+        check_equal(0, myBloom.NameAvailable("Elaine_Benes"));
+        check_equal(0, myBloom.NameAvailable("Jerry.Seinfeld"));
+        check_equal(0, myBloom.NameAvailable("Newman111"));
+        check_equal(0, myBloom.NameAvailable("elaine_benes"));
+
+        // Overall false positive probability
+        cout << "  FP Prob (check manually): 0.0493565 = " << myBloom.FalsePosProbability() << endl;
+
+        // Add enough names to requre a third table
+        myBloom.AddName("FrankCostanza!?#");
+        myBloom.AddName("SERENTIY_NOW!!!");
+        myBloom.AddName("david.Puddy_Go_Devils");
+        myBloom.AddName("Marine Biologist3");
+        myBloom.AddName("1Latex.Salesman");
+        myBloom.AddName("Vandelay_Industries");
+        myBloom.AddName("Yadda.Yadda.Yadda");
+        myBloom.AddName("SevenCostanza7");
+        myBloom.AddName("Mug_Costanza");
+
+        // Successfully expanded?
+        check_equal(3, myBloom.GetMainTable()->tables->size());
+        check_equal(3, myBloom.GetMainTable()->count);
+        check_equal(5, myBloom.GetMainTable()->tables->at(0)->items);
+        check_equal(10, myBloom.GetMainTable()->tables->at(1)->items);
+        check_equal(1, myBloom.GetMainTable()->tables->at(2)->items);
+
+        // Check Properties of third table
+        check_equal(0.0125, myBloom.GetMainTable()->tables->at(2)->maxFpProb);
+        check_equal(20, myBloom.GetMainTable()->tables->at(2)->expected);
+        check_equal(183, myBloom.GetMainTable()->tables->at(2)->size);
+        check_equal(7, myBloom.GetMainTable()->tables->at(2)->hash_count);
+
+        // Overall false positive probability
+        cout << "  FP Prob (check manually): 0.0738701 = " << myBloom.FalsePosProbability() << endl;
+
+        // Reset filter
+        myBloom.Reset();
+        check_equal(1, myBloom.GetMainTable()->count);
+        check_equal(1, myBloom.GetMainTable()->tables->size());
+        check_equal(0, myBloom.GetMainTable()->tables->at(0)->items);
+
+        shared_ptr<bit_table> bit_test = myBloom.GetMainTable()->tables->at(0);
+        int ones = 0;
+        for(int i = 0; i < bit_test->table->size(); i++){
+            if(bit_test->table->at(i) == 1){ones++;}
+        }
+        if(ones > 0){
+            cout << "  Table contains 1's" << endl;
+        }
     }
-    
 }

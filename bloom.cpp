@@ -16,30 +16,18 @@ Bloom::~Bloom(){
 void Bloom::InitBloomTable(int expItems, double maxFpProb){
     // Initialize bloomFilter
     bloomFilter = shared_ptr<bloom_table>(new bloom_table);
-    bloomFilter->count = 1;
+    bloomFilter->count = 0;
     bloomFilter->maxFpProb = maxFpProb;
     bloomFilter->tables = shared_ptr<table_set>(new table_set(0, NULL));
 
     // Create first bit table
-    shared_ptr<bit_table> newBit(new bit_table);
-    bloomFilter->tables->push_back(newBit);
-
-    newBit->items = 0;
-    newBit->maxFpProb = 0.5 * maxFpProb;
-    newBit->expected = expItems;
-
-    double size = ceil(-1.0 * double(expItems) * log(newBit->maxFpProb) / pow(log(2), 2));
-    newBit->size = size;
-
-    double numHash = ceil(double(newBit->size) * log(2) / double(newBit->expected));
-    newBit->hash_count = numHash;
-
-    newBit->table = shared_ptr<vector<bool>>(new vector<bool>(newBit->size, 0));
+    InitBitTable(expItems, maxFpProb * 0.5);
 
 }
 
 bool Bloom::NameAvailable(string checkName){
     if(bloomFilter){
+        // Check each table
         for(int i = 0; i < bloomFilter->tables->size(); i++){
             shared_ptr<bit_table> cur = bloomFilter->tables->at(i);
             vector<int> buckets = GetHashBuckets(checkName, cur->hash_count, cur->size);
@@ -69,10 +57,7 @@ bool Bloom::AddName(string newName){
         }
 
         lastTable->items++;
-        if(lastTable->expected == lastTable->items){
-            Resize();
-        }
-        
+        Expand();
         return true;
     }
 
@@ -93,8 +78,28 @@ double Bloom::FalsePosProbability(){
     return 0;
 }
 
-void Bloom::Resize(){
+void Bloom::Reset(){
+    if(bloomFilter){
+        // Remove all bit tables except the first
+        for(int i = bloomFilter->count; i > 1; i--){
+            bloomFilter->tables->pop_back();
+            bloomFilter->count--;
+        }
 
+        // Reset vector to false
+        shared_ptr<bit_table> initialTbl = bloomFilter->tables->at(0);
+        initialTbl->items = 0;
+        initialTbl->table = shared_ptr<vector<bool>>(new vector<bool>(initialTbl->size, 0));
+    }
+}
+
+void Bloom::Expand(){
+    int tableCount = bloomFilter->tables->size();
+    shared_ptr<bit_table> lastTable = bloomFilter->tables->at(tableCount - 1);
+
+    if(lastTable->expected == lastTable->items){
+        InitBitTable(lastTable->expected * 2, lastTable->maxFpProb * 0.5);
+    }
 }
 
 vector<int> Bloom::GetHashBuckets(string input, int hashCount, int tblSize){
@@ -116,6 +121,24 @@ vector<int> Bloom::GetHashBuckets(string input, int hashCount, int tblSize){
     return ret;
 }
 
+void Bloom::InitBitTable(int expItems, double maxFpProb){
+    shared_ptr<bit_table> newBit(new bit_table);
+    bloomFilter->tables->push_back(newBit);
+    bloomFilter->count++;
+
+    newBit->items = 0;
+    newBit->maxFpProb = maxFpProb;
+    newBit->expected = expItems;
+
+    double size = ceil(-1.0 * double(expItems) * log(newBit->maxFpProb) / pow(log(2), 2));
+    newBit->size = size;
+
+    double numHash = ceil(double(newBit->size) * log(2) / double(newBit->expected));
+    newBit->hash_count = numHash;
+
+    // Initialize vector to false
+    newBit->table = shared_ptr<vector<bool>>(new vector<bool>(newBit->size, 0));
+}
 
 
 // Testing Functions
