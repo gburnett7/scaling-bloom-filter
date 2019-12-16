@@ -154,7 +154,7 @@ int main() {
         // Check that item count updated
         check_equal(4, myBloom.GetMainTable()->tables->at(0)->items);
 
-        //Check that the bloom filter wasn't resized
+        //Check that the bloom filter wasn't expanded
         check_equal(1, myBloom.GetMainTable()->tables->size());
 
         // Check false positive calculation
@@ -233,6 +233,9 @@ int main() {
         check_equal(5, myBloom.GetMainTable()->tables->at(0)->items);
         check_equal(10, myBloom.GetMainTable()->tables->at(1)->items);
         check_equal(1, myBloom.GetMainTable()->tables->at(2)->items);
+
+        //Does NameAvailable check all three tables?
+        check_equal(0, myBloom.NameAvailable("Mug_Costanza"));
 
         // Check Properties of third table
         check_equal(0.0125, myBloom.GetMainTable()->tables->at(2)->maxFpProb);
