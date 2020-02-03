@@ -1,6 +1,6 @@
 # Scaling Bloom Filter
 
-This project is a scalable implementation of the bloom filter data structure. It is inspired largely by the theory layed out in http://gsd.di.uminho.pt/members/cbm/ps/dbloom.pdf and is intended to be used in situations where the number of input elements is not known ahead of time. Instead of using a single table, as in the standard implementation, we use a series of bit-tables that increase in size and decrease in false-positive limit. The false-positive limit of each successive table follows a geometric progression, thereby scaling to the overall desired threshold. For our hash function, we used MurmurHash3.
+This project is a scalable implementation of the bloom filter data structure. It is inspired largely by the theory laid out in http://gsd.di.uminho.pt/members/cbm/ps/dbloom.pdf and is intended to be used in situations where the number of input elements is not known ahead of time. Instead of using a single table, as in the standard implementation, we use a series of bit-tables that increase in size and decrease in false-positive limit. The false-positive limit of each successive table follows a geometric progression, thereby scaling to the overall desired threshold. For our hash function, we used MurmurHash3.
 
 The implementation itself is located in bloom.cpp. main.cpp contains some simple tests I used to check
 
